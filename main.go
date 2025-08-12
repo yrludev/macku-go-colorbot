@@ -1,80 +1,84 @@
 package main
 
 import (
+	"bufio"
+	"fmt"
+	"os"
+	"strings"
+	"sync/atomic"
+	"time"
+
 	"macku-go-colorbot/capture"
 	"macku-go-colorbot/colorbot"
 	"macku-go-colorbot/config"
 	"macku-go-colorbot/mouse"
-	"sync/atomic"
-	"time"
 
 	makcu "github.com/nullpkt/Makcu-Go"
-
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/widget"
 )
 
 var running int32
 
 func main() {
-	myApp := app.New()
-	win := myApp.NewWindow("Macku Go Colorbot")
-
-	status := widget.NewLabel("Status: Idle")
-	startBtn := widget.NewButton("Start", nil)
-	stopBtn := widget.NewButton("Stop", nil)
-	stopBtn.Disable()
-
+	reader := bufio.NewReader(os.Stdin)
 	quit := make(chan struct{})
 
-	startBtn.OnTapped = func() {
-		if atomic.CompareAndSwapInt32(&running, 0, 1) {
-			status.SetText("Status: Running")
-			startBtn.Disable()
-			stopBtn.Enable()
-			go runBot(status, quit)
+	for {
+		fmt.Println("\nMacku Go Colorbot")
+		fmt.Println("1. Start Bot")
+		fmt.Println("2. Stop Bot")
+		fmt.Println("3. Exit")
+		fmt.Print("Select an option: ")
+		input, _ := reader.ReadString('\n')
+		input = strings.TrimSpace(input)
+
+		switch input {
+		case "1":
+			if atomic.CompareAndSwapInt32(&running, 0, 1) {
+				go runBot(quit)
+			} else {
+				fmt.Println("[WARN] Bot is already running.")
+			}
+		case "2":
+			if atomic.CompareAndSwapInt32(&running, 1, 0) {
+				fmt.Println("[INFO] Bot stopped.")
+				close(quit)
+				quit = make(chan struct{}) // reset for next run
+			} else {
+				fmt.Println("[WARN] Bot is not running.")
+			}
+		case "3":
+			fmt.Println("Exiting...")
+			return
+		default:
+			fmt.Println("Invalid option.")
 		}
 	}
-
-	stopBtn.OnTapped = func() {
-		if atomic.CompareAndSwapInt32(&running, 1, 0) {
-			status.SetText("Status: Stopped")
-			stopBtn.Disable()
-			startBtn.Enable()
-			close(quit)
-		}
-	}
-
-	win.SetContent(container.NewVBox(
-		widget.NewLabel("Macku Go Colorbot"),
-		status,
-		container.NewHBox(startBtn, stopBtn),
-	))
-
-	win.Resize(fyne.NewSize(320, 120))
-	win.ShowAndRun()
 }
 
-func runBot(status *widget.Label, quit chan struct{}) {
+func runBot(quit chan struct{}) {
 	settings, err := config.NewSettings("settings.ini")
 	if err != nil {
-		status.SetText("Failed to load settings.ini")
+		fmt.Println("[ERROR] Failed to load settings.ini")
+		atomic.StoreInt32(&running, 0)
 		return
 	}
 
+	makcu.Debug = true 
 	port, err := makcu.Find()
 	if err != nil {
-		status.SetText("Makcu not found!")
+		fmt.Println("[ERROR] Makcu not found! Please connect your device.")
+		atomic.StoreInt32(&running, 0)
 		return
 	}
 	conn, err := makcu.Connect(port, 115200)
 	if err != nil {
-		status.SetText("Makcu connect error!")
+		fmt.Println("[ERROR] Makcu connect error!")
+		atomic.StoreInt32(&running, 0)
 		return
 	}
 	defer conn.Close()
+
+	fmt.Printf("[INFO] Connected to Makcu on %s\n", port)
 
 	m := mouse.NewMouse(conn)
 	centerX := settings.GetInt("Aimbot", "xFov") / 2
@@ -87,7 +91,7 @@ func runBot(status *widget.Label, quit chan struct{}) {
 	)
 	cbot := colorbot.NewColorbot(settings, m, capt)
 
-	status.SetText("Status: Running")
+	fmt.Println("[INFO] Bot is running. Press '2' in the menu to stop.")
 	for atomic.LoadInt32(&running) == 1 {
 		select {
 		case <-quit:
@@ -98,5 +102,5 @@ func runBot(status *widget.Label, quit chan struct{}) {
 			time.Sleep(10 * time.Millisecond)
 		}
 	}
-	status.SetText("Status: Idle")
+	fmt.Println("[INFO] Bot stopped.")
 }

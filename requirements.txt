@@ -1,5 +1,0 @@
-# requirements.txt for Python version (for reference)
-opencv-python
-numpy
-pywin32
-pynput
