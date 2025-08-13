@@ -1,49 +1,47 @@
 
 # macku-go-colorbot
 
-This is a Go port of the ValorantMakcuColorbot, using Makcu-Go for mouse control. It detects a specific color on your screen and moves/clicks the mouse using a Makcu hardware device.
+
+This is a Go colorbot for a 2-PC Makcu setup. It captures a region of your screen, detects a specific color (HSV range), and sends mouse movement commands to a Makcu hardware device using the nullpkt/Makcu-Go library.
 
 ## What it does
 
-- Captures a region of your screen and detects a target color (using HSV range from `settings.ini`).
-- Moves the mouse towards the detected color (aimbot).
-- Clicks the mouse when the color is within a trigger region (triggerbot).
-- All mouse actions are sent through a Makcu device (hardware mouse emulator).
-- All settings (color, FOV, speed, etc.) are configurable in `settings.ini`.
-- Simple command-line menu: start/stop the bot, see connection status, and exit.
+- Captures a 200x200 region at the center of your screen and detects a target color (using a hardcoded HSV range).
+- Moves the mouse towards the detected color (aimbot) by sending commands to a Makcu device (hardware mouse emulator) on another PC.
+- All mouse actions are sent through Makcu using the nullpkt/Makcu-Go library.
+- No settings.ini or CLI menu: all settings are in the code.
 
 ## Setup Instructions
 
 1. **Install Go** (https://go.dev/dl/) and make sure it's in your PATH.
-2. **Install dependencies:**
+2. **Install dependency:**
 	- Open a terminal in this folder and run:
-	  - `go get github.com/kbinani/screenshot`
-	  - `go get github.com/nullpkt/Makcu-Go`
-	  - `go get gopkg.in/ini.v1`
-3. **Connect your Makcu device** to your PC.
-4. **Edit `settings.ini`** to match your color and aimbot preferences.
-5. **Build and run:**
-	- `go build -o colorbot.exe`
+	  - `go get github.com/nullpkt/Makcu-Go@latest`
+	  - `go mod tidy`
+3. **Connect your Makcu device** to your PC (the PC that will move the mouse).
+4. **Build and run:**
+	- `go build -o colorbot.exe main.go`
 	- Double-click `colorbot.exe` or run `./colorbot.exe` in a terminal.
 
 ## Usage
 
 1. Run `colorbot.exe`.
-2. Use the menu:
-	- `1` to start the bot (will print connection status to Makcu)
-	- `2` to stop the bot
-	- `3` to exit
-3. The bot will print `[INFO] Connected to Makcu on ...` if the device is found and working.
+2. The bot will print `[INFO] Found Makcu device on ...` if the device is found and working.
+3. Hold the right mouse button to activate aimbot movement.
 
 ## Features
 
-- Color-based aimbot and triggerbot
+- Color-based aimbot (no triggerbot)
 - Uses Makcu hardware for all mouse actions
-- All settings in `settings.ini`
-- Simple CLI menu for control
+- HSV color range is hardcoded in main.go:
+	- H: 28–53
+	- S: 38–255
+	- V: 200–255
+- FOV is 200x200 pixels at the center of the screen (change ROIHalfSize in main.go to adjust)
 
 ## Credits
 - Go port: yrludev
+	(nullpkt/Makcu-Go integration)
 
 ## DISCLAIMER
 
