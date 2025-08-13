@@ -14,7 +14,7 @@ const (
 	ScreenHeight = 1080
 	CenterX      = ScreenWidth / 2
 	CenterY      = ScreenHeight / 2
-	ROIHalfSize  = 100 // Increased for easier detection
+	ROIHalfSize  = 100 // FOV 200x200 (FOV = ROIHalfSize*2)
 )
 
 var (
@@ -24,19 +24,21 @@ var (
 )
 
 func main() {
-	fmt.Println("[INFO] Starting CLI aimbot using Windows syscalls. Hold right mouse button to drag to target. Press Ctrl+C to exit.")
+	fmt.Printf("[INFO] Starting CLI aimbot using Windows syscalls. Hold right mouse button to drag to target. Press Ctrl+C to exit.\n")
+	fmt.Printf("[INFO] FOV: %dx%d pixels\n", ROIHalfSize*2, ROIHalfSize*2)
 
 	user32 := syscall.NewLazyDLL("user32.dll")
 	getAsyncKeyState := user32.NewProc("GetAsyncKeyState")
 	const VK_RBUTTON = 0x02
 
+	var detections int
+	lastPrint := time.Now()
 	for {
 		// Check if right mouse button is held
 		state, _, _ := getAsyncKeyState.Call(VK_RBUTTON)
 		if state&0x8000 != 0 {
 			img, err := captureScreen()
 			if err != nil {
-				fmt.Println("[ERROR] Screen capture failed:", err)
 				continue
 			}
 
@@ -74,14 +76,18 @@ func main() {
 				if dy < -100 {
 					dy = -100
 				}
-				fmt.Printf("[AIM] Found at (%d,%d), center (%d,%d), dx=%d dy=%d\n", foundX, foundY, CenterX, CenterY, dx, dy)
 				moveMouseRelative(dx, dy)
-			} else {
-				fmt.Println("[AIM] No target color found in center region.")
+				detections++
 			}
 		}
-		// Small sleep to avoid 100% CPU
-		time.Sleep(10 * time.Millisecond)
+		// Print detections per second
+		if time.Since(lastPrint) > time.Second {
+			fmt.Printf("[INFO] Detections/sec: %d\n", detections)
+			detections = 0
+			lastPrint = time.Now()
+		}
+		// Minimal sleep for max speed
+		time.Sleep(1 * time.Millisecond)
 	}
 }
 
