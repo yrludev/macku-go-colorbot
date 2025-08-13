@@ -6,6 +6,8 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
+
+	makcu "github.com/nullpkt/Makcu-Go"
 )
 
 // --- Config ---
@@ -24,8 +26,22 @@ var (
 )
 
 func main() {
-	fmt.Printf("[INFO] Starting CLI aimbot using Windows syscalls. Hold right mouse button to drag to target. Press Ctrl+C to exit.\n")
+	fmt.Printf("[INFO] Starting CLI aimbot using Makcu device. Hold right mouse button to drag to target. Press Ctrl+C to exit.\n")
 	fmt.Printf("[INFO] FOV: %dx%d pixels\n", ROIHalfSize*2, ROIHalfSize*2)
+
+	// Auto-detect Makcu device
+	MakcuPort, err := makcu.Find()
+	if err != nil {
+		fmt.Println("[ERROR] No Makcu device found:", err)
+		return
+	}
+	fmt.Printf("[INFO] Found Makcu device on %s\n", MakcuPort)
+	MakcuConn, err := makcu.Connect(MakcuPort, 115200)
+	if err != nil {
+		fmt.Println("[ERROR] Could not connect to Makcu device:", err)
+		return
+	}
+	defer MakcuConn.Close()
 
 	user32 := syscall.NewLazyDLL("user32.dll")
 	getAsyncKeyState := user32.NewProc("GetAsyncKeyState")
@@ -76,7 +92,8 @@ func main() {
 				if dy < -100 {
 					dy = -100
 				}
-				moveMouseRelative(dx, dy)
+				// Send to Makcu device
+				MakcuConn.MoveMouse(dx, dy)
 				detections++
 			}
 		}
@@ -201,22 +218,4 @@ func min3(a, b, c uint8) uint8 {
 		return b
 	}
 	return c
-}
-
-// --- Windows mouse movement using syscalls ---
-func moveMouseRelative(dx, dy int) {
-	user32 := syscall.NewLazyDLL("user32.dll")
-	getCursorPos := user32.NewProc("GetCursorPos")
-	setCursorPos := user32.NewProc("SetCursorPos")
-
-	type POINT struct {
-		X int32
-		Y int32
-	}
-
-	var pt POINT
-	getCursorPos.Call(uintptr(unsafe.Pointer(&pt)))
-	newX := int(pt.X) + dx
-	newY := int(pt.Y) + dy
-	setCursorPos.Call(uintptr(newX), uintptr(newY))
 }
