@@ -43,8 +43,6 @@ This is a Go port of the ValorantMakcuColorbot, using Makcu-Go for mouse control
 - Simple CLI menu for control
 
 ## Credits
-
-- Original Python: Ahmo934/ValorantMakcuColorbot
 - Go port: yrludev
 
 ## DISCLAIMER
